@@ -3,97 +3,355 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Retail Barcode & QR Generator</title>
-    <!-- Include CDN links for Barcode and QR Code libraries -->
+    <title>Retail Manager - OCR, Barcodes & Lists</title>
+    
+    <!-- External Libraries (CDN) -->
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
     
     <style>
-        body { font-family: Arial, sans-serif; margin: 30px; background-color: #f4f7f6; color: #333; }
-        .container { max-width: 500px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; }
-        input[type="text"] { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        .checkbox-group { margin: 15px 0; }
-        button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }
-        button:hover { background-color: #0056b3; }
-        .output-section { margin-top: 25px; text-align: center; }
-        .output-box { margin-bottom: 30px; padding: 10px; background: #fafafa; border: 1px dashed #ccc; display: inline-block; min-width: 200px; }
-        #qrcode { display: inline-block; }
+        :root {
+            --primary: #007bff;
+            --success: #28a745;
+            --danger: #dc3545;
+            --dark: #343a40;
+            --light: #f8f9fa;
+        }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #e9ecef; color: #333; }
+        .dashboard { display: grid; grid-template-columns: 1fr; gap: 20px; max-width: 1200px; margin: 0 auto; }
+        @media(min-width: 768px) {
+            .dashboard { grid-template-columns: 2fr 1fr; }
+        }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); height: fit-content; }
+        h2, h3 { margin-top: 0; color: var(--dark); }
+        
+        /* Form Controls */
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        input[type="text"], select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .inline-checkbox { display: flex; align-items: center; gap: 5px; margin: 10px 0; }
+        
+        /* Buttons */
+        button { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; padding: 5px 10px; font-size: 12px; }
+        button:hover { opacity: 0.9; }
+        
+        /* List Management */
+        .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
+        .item-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .item-table th, .item-table td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        .item-table th { background: var(--light); }
+        .item-row { cursor: pointer; }
+        .item-row:hover { background: #f1f3f5; }
+        
+        /* Utilities */
+        .search-bar { margin-bottom: 15px; font-size: 16px; padding: 10px; }
+        #preview { max-width: 100%; max-height: 120px; display: none; margin-top: 5px; border: 1px solid #ccc; }
+        #status { font-weight: bold; color: #666; font-size: 12px; margin: 5px 0; }
+        
+        /* Output Generator Box */
+        .generator-pane { text-align: center; position: sticky; top: 20px; }
+        .output-box { margin: 15px 0; padding: 10px; background: var(--light); border: 1px dashed #ccc; display: inline-block; min-width: 220px; min-height: 100px; vertical-align: top; }
+        #qrcode { display: flex; justify-content: center; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>Retail Code Generator</h2>
+<div class="dashboard">
     
-    <div class="form-group">
-        <label for="inputString">Enter PLU / Product Code:</label>
-        <input type="text" id="inputString" placeholder="e.g., 92003">
-    </div>
-
-    <div class="checkbox-group">
-        <input type="checkbox" id="meatSeafoodMode" checked>
-        <label style="display:inline;" for="meatSeafoodMode">Enforce "Meat & Seafood" format (Add 2...00000)</label>
-    </div>
-
-    <button onclick="generateCodes()">Generate Codes</button>
-
-    <div class="output-section">
-        <h3>Generated Barcode (UPC-A)</h3>
-        <div class="output-box">
-            <svg id="barcode"></svg>
+    <!-- LEFT PANEL: Lists and Items Management -->
+    <div class="card">
+        <h2>Retail Lists Dashboard</h2>
+        
+        <!-- List Administration -->
+        <div style="background: var(--light); padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+            <h3>Manage Custom Lists</h3>
+            <div style="display:flex; gap: 10px;">
+                <input type="text" id="newListName" placeholder="e.g., Meat Department">
+                <button class="btn-primary" onclick="createNewList()">Create List</button>
+            </div>
+            <div style="margin-top: 10px;">
+                <label for="activeListSelect">Active Working List:</label>
+                <select id="activeListSelect" onchange="switchList()"></select>
+                <button class="btn-danger" style="margin-top:8px;" onclick="deleteCurrentList()">Delete Entire Active List</button>
+            </div>
         </div>
 
-        <h3>Generated QR Code</h3>
-        <div class="output-box">
-            <div id="qrcode"></div>
+        <!-- Items Table Container -->
+        <div>
+            <div class="list-header">
+                <h3 id="currentListTitle">Items</h3>
+                <input type="text" id="searchFilter" class="search-bar" placeholder="🔍 Filter items by name or code..." onkeyup="filterItems()">
+            </div>
+            
+            <table class="item-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Description</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="itemsTableBody">
+                    <!-- Dynamic Items Inject Here -->
+                </tbody>
+            </table>
         </div>
     </div>
+
+    <!-- RIGHT PANEL: OCR Input & Live Generated Code View -->
+    <div class="card generator-pane">
+        <h2>Live Generator / Input</h2>
+        
+        <!-- OCR/Camera Integration -->
+        <div class="form-group" style="background: #eef1f6; padding: 10px; border-radius: 6px; text-align: left;">
+            <label>Scan Code via Camera / Gallery:</label>
+            <input type="file" id="imageInput" accept="image/*" onchange="processOCR()">
+            <div id="status"></div>
+            <img id="preview" alt="Scan preview">
+        </div>
+
+        <!-- Data Modification Form -->
+        <div style="text-align: left; margin-top: 15px;">
+            <div class="form-group">
+                <label>Product Code / PLU:</label>
+                <input type="text" id="itemCode" placeholder="e.g., 92003" oninput="generatePreview()">
+            </div>
+            <div class="form-group">
+                <label>Item Description:</label>
+                <input type="text" id="itemDesc" placeholder="e.g., Ribeye Steak">
+            </div>
+            <div class="inline-checkbox">
+                <input type="checkbox" id="meatSeafoodMode" checked onchange="generatePreview()">
+                <label for="meatSeafoodMode">Enforce Meat/Seafood Format (2...00000)</label>
+            </div>
+            <button class="btn-success" style="width:100%; margin-top: 5px;" onclick="addItemToActiveList()">+ Add Item to Current List</button>
+        </div>
+
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #ccc;">
+
+        <!-- Active Scannable Outputs -->
+        <div>
+            <h4>Scannable Preview (Code 128)</h4>
+            <div class="output-box">
+                <svg id="barcode"></svg>
+            </div>
+            <h4>Scannable Preview (QR Code)</h4>
+            <div class="output-box">
+                <div id="qrcode"></div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 <script>
-function generateCodes() {
-    let input = document.getElementById("inputString").value.trim();
+// Core state object. Saves everything locally to the browser automatically.
+let appData = JSON.parse(localStorage.getItem('retailManagerData')) || {
+    lists: {
+        "Default Meat Dept": [
+            { code: "92003", desc: "Ribeye Steak" },
+            { code: "81045", desc: "Fresh Salmon Fillet" }
+        ]
+    },
+    activeList: "Default Meat Dept"
+};
+
+// Initialize app on screen render
+window.onload = function() {
+    renderListDropdown();
+    renderActiveListItems();
+    generatePreview();
+};
+
+function saveToLocalStorage() {
+    localStorage.setItem('retailManagerData', JSON.stringify(appData));
+}
+
+// --- LIST MANAGEMENT LOGIC ---
+function renderListDropdown() {
+    const select = document.getElementById('activeListSelect');
+    select.innerHTML = '';
+    Object.keys(appData.lists).forEach(listName => {
+        let opt = document.createElement('option');
+        opt.value = listName;
+        opt.innerText = listName;
+        if(listName === appData.activeList) opt.selected = true;
+        select.appendChild(opt);
+    });
+    document.getElementById('currentListTitle').innerText = `List: ${appData.activeList}`;
+}
+
+function createNewList() {
+    const nameInput = document.getElementById('newListName');
+    const name = nameInput.value.trim();
+    if(!name) return alert("Enter a valid list name.");
+    if(appData.lists[name]) return alert("A list with that name already exists.");
+    
+    appData.lists[name] = [];
+    appData.activeList = name;
+    nameInput.value = '';
+    
+    saveToLocalStorage();
+    renderListDropdown();
+    renderActiveListItems();
+}
+
+function switchList() {
+    appData.activeList = document.getElementById('activeListSelect').value;
+    saveToLocalStorage();
+    document.getElementById('currentListTitle').innerText = `List: ${appData.activeList}`;
+    renderActiveListItems();
+}
+
+function deleteCurrentList() {
+    const listNames = Object.keys(appData.lists);
+    if(listNames.length <= 1) return alert("You must keep at least one active list.");
+    if(!confirm(`Are you sure you want to delete the list "${appData.activeList}"?`)) return;
+    
+    delete appData.lists[appData.activeList];
+    appData.activeList = Object.keys(appData.lists)[0];
+    
+    saveToLocalStorage();
+    renderListDropdown();
+    renderActiveListItems();
+}
+
+// --- ITEM MANAGEMENT LOGIC ---
+function renderActiveListItems() {
+    const tbody = document.getElementById('itemsTableBody');
+    tbody.innerHTML = '';
+    const currentItems = appData.lists[appData.activeList] || [];
+    
+    currentItems.forEach((item, index) => {
+        let row = document.createElement('tr');
+        row.className = "item-row";
+        row.setAttribute('onclick', `loadItemToGenerator("${item.code}", "${item.desc}")`);
+        row.innerHTML = `
+            <strong><td>${item.code}</td></strong>
+            <td>${item.desc}</td>
+            <td>
+                <button class="btn-danger" onclick="removeItem(event, ${index})">Delete</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+    filterItems(); // Run filtering rules if text is active in filter box
+}
+
+function addItemToActiveList() {
+    const code = document.getElementById('itemCode').value.trim();
+    const desc = document.getElementById('itemDesc').value.trim() || "No Description";
+    
+    if(!code) return alert("Please provide a product code.");
+    
+    appData.lists[appData.activeList].push({ code, desc });
+    saveToLocalStorage();
+    renderActiveListItems();
+    
+    // Clear item inputs for ease of next addition
+    document.getElementById('itemCode').value = '';
+    document.getElementById('itemDesc').value = '';
+}
+
+function removeItem(event, index) {
+    event.stopPropagation(); // Stops the row click from triggering simultaneously
+    appData.lists[appData.activeList].splice(index, 1);
+    saveToLocalStorage();
+    renderActiveListItems();
+}
+
+function loadItemToGenerator(code, desc) {
+    document.getElementById('itemCode').value = code;
+    document.getElementById('itemDesc').value = desc;
+    generatePreview();
+}
+
+// --- FILTERING AND SORTING LOGIC ---
+function filterItems() {
+    const query = document.getElementById('searchFilter').value.toLowerCase();
+    const rows = document.querySelectorAll('#itemsTableBody tr');
+    
+    rows.forEach(row => {
+        const textContent = row.innerText.toLowerCase();
+        if(textContent.includes(query)) {
+            row.style.display = "";
+        } else {
+            row.style.display = "none";
+        }
+    });
+}
+
+// --- OCR PROCESSING LOGIC ---
+function processOCR() {
+    const fileInput = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    const status = document.getElementById('status');
+    
+    if (!fileInput.files || !fileInput.files[0]) return;
+    const file = fileInput.files[0];
+    
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+    status.innerText = "Running OCR Engine...";
+
+    Tesseract.recognize(file, 'eng', { 
+        logger: m => { if(m.status === 'recognizing') status.innerText = `Scanning: ${Math.floor(m.progress * 100)}%`; } 
+    }).then(({ data: { text } }) => {
+        status.innerText = "Scan Finished.";
+        let cleanedNumbers = text.replace(/[^0-9]/g, '');
+        if (cleanedNumbers) {
+            document.getElementById('itemCode').value = cleanedNumbers;
+            generatePreview();
+        } else {
+            status.innerText = "Scan complete. No numeric codes found.";
+        }
+    }).catch(err => {
+        status.innerText = "Error scanning image.";
+        console.error(err);
+    });
+}
+
+// --- CODE GENERATION LOGIC ---
+function generatePreview() {
+    let input = document.getElementById("itemCode").value.trim();
     let isMeatSeafood = document.getElementById("meatSeafoodMode").checked;
     
     if (!input) {
-        alert("Please enter a string/number first.");
+        document.getElementById("barcode").style.display = "none";
+        document.getElementById("qrcode").innerHTML = "";
         return;
     }
 
     let finalString = input;
-
-    // Apply Meat and Seafood logic
     if (isMeatSeafood) {
         finalString = "2" + input + "00000"; 
-        // Result: "29200300000" (Exactly 11 digits)
     }
 
-    // --- 1. Generate Barcode (Using Code 128 to prevent forced 12th digit) ---
+    // Generate Code 128 (Your internal scanner safe system)
     try {
         document.getElementById("barcode").style.display = "inline-block";
         JsBarcode("#barcode", finalString, {
-            format: "CODE128", // Switched from UPC to CODE128
+            format: "CODE128",
             width: 2,
-            height: 80,
-            displayValue: true // Shows the 11-digit text below the bars
+            height: 70,
+            displayValue: true
         });
     } catch (error) {
-        alert("Barcode Error: " + error.message);
         document.getElementById("barcode").style.display = "none";
     }
 
-    // --- 2. Generate QR Code ---
+    // Generate QR Code
     document.getElementById("qrcode").innerHTML = "";
     new QRCode(document.getElementById("qrcode"), {
-        text: finalString, // Encodes exactly 11 digits
-        width: 128,
-        height: 128
+        text: finalString,
+        width: 120,
+        height: 120
     });
 }
-
-window.onload = generateCodes;
 </script>
 
 </body>
