@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retail Barcode & QR Generator</title>
+    <!-- Include CDN links for Barcode and QR Code libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; background-color: #f4f7f6; color: #333; }
+        .container { max-width: 500px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input[type="text"] { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .checkbox-group { margin: 15px 0; }
+        button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }
+        button:hover { background-color: #0056b3; }
+        .output-section { margin-top: 25px; text-align: center; }
+        .output-box { margin-bottom: 30px; padding: 10px; background: #fafafa; border: 1px dashed #ccc; display: inline-block; min-width: 200px; }
+        #qrcode { display: inline-block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Retail Code Generator</h2>
+    
+    <div class="form-group">
+        <label for="inputString">Enter PLU / Product Code:</label>
+        <input type="text" id="inputString" placeholder="e.g., 92003">
+    </div>
+
+    <div class="checkbox-group">
+        <input type="checkbox" id="meatSeafoodMode" checked>
+        <label style="display:inline;" for="meatSeafoodMode">Enforce "Meat & Seafood" format (Add 2...00000)</label>
+    </div>
+
+    <button onclick="generateCodes()">Generate Codes</button>
+
+    <div class="output-section">
+        <h3>Generated Barcode (UPC-A)</h3>
+        <div class="output-box">
+            <svg id="barcode"></svg>
+        </div>
+
+        <h3>Generated QR Code</h3>
+        <div class="output-box">
+            <div id="qrcode"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+function generateCodes() {
+    let input = document.getElementById("inputString").value.trim();
+    let isMeatSeafood = document.getElementById("meatSeafoodMode").checked;
+    
+    if (!input) {
+        alert("Please enter a string/number first.");
+        return;
+    }
+
+    let finalString = input;
+
+    // Apply Meat and Seafood logic
+    if (isMeatSeafood) {
+        finalString = "2" + input + "00000"; 
+        // Result: "29200300000" (Exactly 11 digits)
+    }
+
+    // --- 1. Generate Barcode (Using Code 128 to prevent forced 12th digit) ---
+    try {
+        document.getElementById("barcode").style.display = "inline-block";
+        JsBarcode("#barcode", finalString, {
+            format: "CODE128", // Switched from UPC to CODE128
+            width: 2,
+            height: 80,
+            displayValue: true // Shows the 11-digit text below the bars
+        });
+    } catch (error) {
+        alert("Barcode Error: " + error.message);
+        document.getElementById("barcode").style.display = "none";
+    }
+
+    // --- 2. Generate QR Code ---
+    document.getElementById("qrcode").innerHTML = "";
+    new QRCode(document.getElementById("qrcode"), {
+        text: finalString, // Encodes exactly 11 digits
+        width: 128,
+        height: 128
+    });
+}
+
+window.onload = generateCodes;
+</script>
+
+</body>
+</html>
